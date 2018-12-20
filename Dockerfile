@@ -2,31 +2,36 @@
 FROM resin/rpi-raspbian:stretch
 MAINTAINER Ian Chesal <ian.chesal@gmail.com>
 
-# Setup external package-sources
-RUN apt-get update && apt-get install -y \
-    apt-transport-https \
-    curl \
-    --no-install-recommends && \ 
-    curl -sL https://repos.influxdata.com/influxdb.key | sudo apt-key add - source /etc/os-release && \
-    echo "deb https://repos.influxdata.com/debian stretch stable" | sudo tee /etc/apt/sources.list.d/influxdb.list && \
-    apt-get update && apt-get install -y \
-    influxdb=1.7.2-1 \
-    --no-install-recommends && \
-    apt-get remove --auto-remove -y \
-    apt-transport-https && \
-    rm -rf /var/lib/apt/lists/*
+RUN set -ex && \
+    for key in \
+        05CE15085FC09D18E99EFB22684A14CF2582E0C5 ; \
+    do \
+        gpg --keyserver ha.pool.sks-keyservers.net --recv-keys "$key" || \
+        gpg --keyserver pgp.mit.edu --recv-keys "$key" || \
+        gpg --keyserver keyserver.pgp.com --recv-keys "$key" ; \
+    done
 
+ENV INFLUXDB_VERSION 1.7.2
+RUN ARCH= && dpkgArch="$(dpkg --print-architecture)" && \
+    case "${dpkgArch##*-}" in \
+      amd64) ARCH='amd64';; \
+      arm64) ARCH='arm64';; \
+      armhf) ARCH='armhf';; \
+      armel) ARCH='armel';; \
+      *)     echo "Unsupported architecture: ${dpkgArch}"; exit 1;; \
+    esac && \
+    curl --remote-name https://dl.influxdata.com/influxdb/releases/influxdb_${INFLUXDB_VERSION}_${ARCH}.deb.asc && \
+    curl --remote-name https://dl.influxdata.com/influxdb/releases/influxdb_${INFLUXDB_VERSION}_${ARCH}.deb && \
+    gpg --batch --verify influxdb_${INFLUXDB_VERSION}_${ARCH}.deb.asc influxdb_${INFLUXDB_VERSION}_${ARCH}.deb && \
+    dpkg -i influxdb_${INFLUXDB_VERSION}_${ARCH}.deb && \
+    rm -f influxdb_${INFLUXDB_VERSION}_${ARCH}.deb*
 COPY influxdb.conf /etc/influxdb/influxdb.conf
 
-ADD run.sh /run.sh
-RUN chmod +x /*.sh
-
-ENV PRE_CREATE_DB **None**
-
-# HTTP API
 EXPOSE 8086
 
-VOLUME ["/data"]
+VOLUME /var/lib/influxdb
 
-CMD ["/run.sh"]
-
+COPY entrypoint.sh /entrypoint.sh
+COPY init-influxdb.sh /init-influxdb.sh
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["influxd"]
