@@ -1,6 +1,6 @@
 # Pull base image
-FROM resin/rpi-raspbian:jessie
-MAINTAINER Henrik Östman <trycoon@gmail.com>
+FROM resin/rpi-raspbian:stretch
+MAINTAINER Ian Chesal <ian.chesal@gmail.com>
 
 # Setup external package-sources
 RUN apt-get update && apt-get install -y \
@@ -8,9 +8,9 @@ RUN apt-get update && apt-get install -y \
     curl \
     --no-install-recommends && \ 
     curl -sL https://repos.influxdata.com/influxdb.key | sudo apt-key add - source /etc/os-release && \
-    echo "deb https://repos.influxdata.com/debian jessie stable" | sudo tee /etc/apt/sources.list.d/influxdb.list && \
+    echo "deb https://repos.influxdata.com/debian stretch stable" | sudo tee /etc/apt/sources.list.d/influxdb.list && \
     apt-get update && apt-get install -y \
-    influxdb=1.2.2-1 \
+    influxdb=1.7.2-1 \
     --no-install-recommends && \
     apt-get remove --auto-remove -y \
     apt-transport-https && \
